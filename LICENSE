@@ -1,6 +1,6 @@
 MIT License
 
-Copyright (c) 2026 csgo-inventory-cs16 contributors
+Copyright (c) 2026 CS16 Skin Inventory contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22,20 +22,27 @@ SOFTWARE.
 
 ---
 
-## 资源版权说明（重要）
+## Asset Copyright Notice (important)
 
-本仓库的 **MIT 协议仅适用于 `src/` 目录下的源代码**（`cs_skin_gui.py`）。
+The MIT License above applies **only to the source code under `src/`**
+(`cs_skin_gui.py` and `i18n.py`).
 
-`cstrike/` 目录下的所有内容 —— 包括但不限于：
+Everything under `cstrike/` - including but not limited to:
 
-- `cstrike/CSGO Texture Pack/**/*.bmp` （2,173 个贴图）
-- `cstrike/models/**/*.mdl` （112 个模型）
-- `cstrike/sound/**/*.wav` （208 个音效）
+- `cstrike/CSGO Texture Pack/**/*.bmp`  (2,173 textures)
+- `cstrike/models/**/*.mdl`             (112 models)
+- `cstrike/sound/**/*.wav`             (208 sounds)
 
-**均为第三方 CS:GO → GoldSrc 移植作品，不属于本项目作者所有，**
-版权归原移植者与 Valve Corporation 所有，**不适用本仓库的 MIT 协议**。
+**is third-party CS:GO-to-GoldSrc ported work. It is not owned by this
+project's author.** Copyright remains with the original porters and Valve
+Corporation, and **the MIT License does not apply to it**.
 
-这些资源的原始出处见 [README.md 的 Credits 章节](README.md#credits)。
+Those assets originate from the CS:GO Ports studio on GameBanana; see the
+Credits section of README.md for full attribution.
 
-本项目仅对资源的整理、分发方式与配套工具代码负责，
-不对第三方资源的版权状态作任何声明或担保。
+This project takes responsibility only for how the assets are organised and
+distributed, plus the accompanying tool. It makes no warranty of any kind
+regarding the copyright status of third-party assets.
+
+The original author states: "Don't redistribute this as yours!!!!!" - do not
+rebrand these assets as your own.

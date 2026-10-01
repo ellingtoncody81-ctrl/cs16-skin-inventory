@@ -1,163 +1,189 @@
-# CS:GO Weapon Inventory for Counter-Strike 1.6
+# CS16 Skin Inventory
 
-**把 CS:GO 的武器皮肤库存系统移植到 CS 1.6（GoldSrc）。**
+**The CS:GO weapon skin inventory system, ported to Counter-Strike 1.6 (GoldSrc).**
 
-配套一个 Windows 图形化换肤工具：解析 GoldSrc `.mdl` 模型文件，
-把 BMP 贴图**直接写回模型内置纹理槽**，无需 HLMV、无需 studiomdl 重编译。
+A Windows GUI that parses GoldSrc `.mdl` model files and writes BMP textures
+**directly into the model's embedded texture slots** - no HLMV, no studiomdl,
+no recompilation.
 
-仓库结构与游戏目录一致 —— **整个 `cstrike\` 复制到游戏的 `Half-Life\` 即可直接使用。**
+The repository layout mirrors the game directory: **copy `cstrike\` into your
+`Half-Life\` folder and you're done.**
 
----
-
-## 特性
-
-- **零重编译换肤** —— 直接改写 `.mdl` 内嵌纹理，不碰骨骼/动画/碰撞体
-- **3 类资源可换** —— 武器皮肤、匕首皮肤、手套、贴纸（印花）
-- **一键随机** —— 单把随机 / 全部武器随机
-- **贴图实时预览** —— BMP 直读，索引色 256 色
-- **支持 34 把武器 + 19 种刀型**
-- **零依赖单文件** —— 除 Pillow 外无其他 Python 依赖
+[简体中文](docs/README.zh-CN.md) | [使用说明](docs/使用说明.md) | [资源清单](docs/资源清单.md)
 
 ---
 
-## 安装
+## Features
 
-### 方式一：直接用打包好的 EXE（推荐）
+- **Zero-recompile skinning** - overwrites the texture in place; bones, animation
+  sequences, hitboxes and file size all stay untouched
+- **Four resource types** - weapon skins, knives, gloves, stickers
+- **One-click randomize** - per weapon, or every weapon at once
+- **Live texture preview** - reads indexed-colour BMPs directly
+- **34 firearms + 19 knife types**
+- **Bilingual UI** - switch between Simplified Chinese and English at runtime
+- **Single-file tool** - Pillow is the only dependency
 
-1. 从 [Releases](https://github.com/<owner>/<repo>/releases) 下载，或直接用仓库根目录的 `cs_skin_gui.exe`
-2. 把**整个仓库文件夹**放在任意位置（工具会自动定位同级 `cstrike\` 目录）
-3. 双击运行
+---
 
-### 方式二：从源码运行
+## Install
+
+### Option 1 - use the prebuilt EXE (recommended)
+
+1. Grab `cs_skin_gui.exe` from the repository root, or from the Releases page
+2. Keep the whole repository folder together - the tool locates `cstrike\`
+   next to itself
+3. Double-click to run
+
+### Option 2 - run from source
 
 ```bash
-git clone <本仓库地址>
-cd csgo-inventory-cs16
+git clone https://github.com/ellingtoncody81-ctrl/cs16-skin-inventory.git
+cd cs16-skin-inventory
 pip install -r requirements.txt
 python src/cs_skin_gui.py
 ```
 
-> **Python 3.8+** · Windows · 依赖仅 `Pillow`（`tkinter` 为标准库自带）
+> Requires **Python 3.8+** on Windows. `tkinter` ships with the official
+> installer; Pillow is the only pip dependency.
 
 ---
 
-## 目录结构
+## Interface language
+
+The GUI ships with both Simplified Chinese and English. Click the language badge
+in the top-right corner of the title bar to switch - the change is instant and
+applies to every label, button, status line and dialog.
+
+All translatable strings live in `src/i18n.py`. To add a language, append a
+third entry to each tuple:
+
+```python
+"apply_skin": ("应用皮肤", "Apply", "Votre texte"),
+```
+
+The tool warns on `stderr` when a key is missing a translation, so nothing
+fails silently. Run `python src/i18n.py` to print a coverage report.
+
+---
+
+## Layout
 
 ```
-csgo-inventory-cs16/
-├── cs_skin_gui.exe              # 打包好的图形工具
-├── src/
-│   └── cs_skin_gui.py           # 源码（MIT）
-├── cstrike/                     # ← 整个目录复制到游戏的 Half-Life\ 即可
-│   ├── models/                  # 112 个 .mdl 武器模型
-│   │   ├── v_ak47.mdl           #   第一人称
-│   │   ├── p_ak47.mdl           #   第三人称
-│   │   └── ...
-│   ├── sound/                   # 208 个 .wav 武器音效
-│   │   ├── ak47-1.wav           #   原版 CS1.6 音效
-│   │   └── csgo/                #   CS:GO 移植音效
-│   │       ├── ak47/
-│   │       ├── awp/
-│   │       └── ...
-│   └── CSGO Texture Pack/       # 2,173 个 .bmp 贴图
-│       ├── _gloves/             #   手套贴图（103）
-│       ├── knives_textures/     #   匕首贴图（466）
-│       ├── stickers/            #   印花贴图（549）
-│       ├── AK-47/               #   武器贴图
-│       ├── AWP/
-│       └── ... 共 24 个武器目录
-├── docs/
-│   ├── 使用说明.md
-│   └── 资源清单.md
-├── LICENSE
-├── requirements.txt
-└── README.md
+cs16-skin-inventory/
+|-- cs_skin_gui.exe              # prebuilt GUI
+|-- src/
+|   |-- cs_skin_gui.py           # source (MIT)
+|   `-- i18n.py                  # bilingual string table
+|-- cstrike/                     # copy this into Half-Life\
+|   |-- models/                  # 112 .mdl weapon models
+|   |   |-- v_ak47.mdl           #   first person
+|   |   |-- p_ak47.mdl           #   third person
+|   |   `-- ...
+|   |-- sound/                   # 208 .wav weapon sounds
+|   |   |-- ak47-1.wav           #   vanilla CS 1.6
+|   |   `-- csgo/                #   ported CS:GO sounds
+|   |       |-- ak47/
+|   |       |-- awp/
+|   |       `-- ...
+|   `-- CSGO Texture Pack/       # 2,173 .bmp textures
+|       |-- _gloves/             #   103 glove textures
+|       |-- knives_textures/     #   466 knife textures
+|       |-- stickers/            #   549 sticker textures
+|       `-- AK-47/ AWP/ ...      #   24 weapon folders
+|-- docs/
+|   |-- README.zh-CN.md          # Chinese readme
+|   |-- 使用说明.md              # usage guide (Chinese)
+|   `-- 资源清单.md              # asset manifest (Chinese)
+|-- LICENSE
+|-- requirements.txt
+`-- README.md
 ```
 
 ---
 
-## 使用
+## Usage
 
-1. 运行 `cs_skin_gui.exe`
-2. 左侧选择武器（可切「枪械」/「刀」分类，可点「一键随机全部」）
-3. 右侧从列表里挑皮肤，**贴图会实时预览**
-4. 点「应用皮肤」—— 直接改写 `cstrike\models\` 下对应 `.mdl`
-5. 启动游戏即可看到新皮肤
+1. Run `cs_skin_gui.exe`
+2. Pick a weapon on the left - filter by **Firearm** / **Knife**, or hit
+   **Randomize All**
+3. Pick a skin on the right; the texture preview updates live
+4. Hit **Apply** - the matching `.mdl` in `cstrike\models\` is rewritten
+5. Launch the game
 
-> **备份提醒**：首次使用前请自行备份 `cstrike\models\` 目录。
-> 工具会直接覆盖模型文件。
+> **Warning: back up `cstrike\models\` first.** The tool overwrites model
+> files in place and has no undo.
 
 ---
 
-## 工具是怎么工作的
+## How it works
 
-GoldSrc 的 `.mdl` 文件里，每张贴图都是一个 **512×512 的 8 位索引色**数据块，
-后面紧跟 **768 字节的 256 色调色板**。
+Every texture in a GoldSrc `.mdl` is an **8-bit indexed** pixel block (typically
+512x512) followed by a **768-byte, 256-colour palette**.
 
-工具的流程：
-
-```
-1. 读 .mdl → 校验 magic "IDST" + version == 10
-2. 解析 header → 拿到 textureindex / numtextures
-3. 遍历纹理表 → 每项 80 字节，得到纹理的 名字/宽/高/数据偏移
-4. 用 Pillow 打开 BMP
-   ├─ 索引色(P) → 直接取像素 + 调色板
-   └─ 真彩色     → quantize(256, MEDIANCUT) 量化
-5. 尺寸不符 → NEAREST 缩放到模型要求的宽高
-6. 覆写 .mdl 里对应的像素块 + 调色板
-7. 写回磁盘
+```text
+1. Read .mdl -> validate magic "IDST" and version == 10
+2. Parse header -> locate textureindex / numtextures
+3. Walk the texture table (80 bytes per entry) -> name, width, height, data offset
+4. Load the BMP with Pillow
+   |-- indexed (P) -> take pixels and palette as-is
+   `-- truecolour  -> quantize(256, MEDIANCUT)
+5. Resize with NEAREST if dimensions don't match the model's
+6. Overwrite the pixel block and palette inside the .mdl
+7. Write back to disk
 ```
 
-**为什么不用 HLMV / studiomdl** —— 因为只换贴图不换几何。
-`.mdl` 的骨骼、动画序列、碰撞体、命中盒全部保持原样，
-所以直接二进制覆写是安全的，文件大小也不变。
+**Why no HLMV or studiomdl?** Because only the texture changes, never the
+geometry. Bones, animation sequences, collision hulls and hitboxes stay
+identical, so a binary overwrite is safe and the file size never changes.
 
 ---
 
 ## Credits
 
-### 移植资源（本仓库 `cstrike/` 全部内容）
+### Ported assets - everything under `cstrike/`
 
-本项目 **不制作任何美术资源**。以下内容全部来自
-**CS:GO Ports 工作室**（GameBanana 工作室，33 名成员）在
-GameBanana 发布的 CS:GO → GoldSrc 移植作品：
+This project **creates no art assets**. Everything below was ported from CS:GO
+to GoldSrc by the **CS:GO Ports** studio (33 members) and published on
+GameBanana:
 
-| 资源 | 原作者 | 出处 |
+| Asset | Author | Source |
 |---|---|---|
-| 武器贴图包 | **BDS** | [1424 CSGO's Texture Pack !!! By BDS](https://gamebanana.com/mods/228944) |
-| 武器模型（低模 + CS1.6 手臂 + 检视动画） | **CS:GO Ports** | [CS:GO Weapons Pack - Update #3](https://gamebanana.com/mods/227269) |
-| 上述两者的整合打包 | TheDoctor0 | [TheDoctor0/CSGOMod](https://github.com/TheDoctor0/CSGOMod) |
-| 工作室主页 | — | [CS:GO Ports @ GameBanana](https://gamebanana.com/studios/34724) |
+| Weapon texture pack | **BDS** | [1424 CSGO's Texture Pack !!! By BDS](https://gamebanana.com/mods/228944) |
+| Weapon models (low-poly, CS 1.6 hand rig, inspect animations) | **CS:GO Ports** | [CS:GO Weapons Pack - Update #3](https://gamebanana.com/mods/227269) |
+| Packaging reference | TheDoctor0 | [TheDoctor0/CSGOMod](https://github.com/TheDoctor0/CSGOMod) |
+| Studio home | - | [CS:GO Ports @ GameBanana](https://gamebanana.com/studios/34724) |
 
-原作者在发布页明确标注 **"Don't redistribute this as yours!!!!!"** ——
-**请勿冒名转载**。本仓库严格遵守，仅做整理与工具化。
+The original author states: **"Don't redistribute this as yours!!!!!"** - do
+not rebrand it. This repository credits them and claims nothing else.
 
-### 上游作品
+### Upstream
 
-- **Counter-Strike** 与 **CS:GO** — Valve Corporation
-- **GoldSrc SDK** — Valve Corporation
-- **[TheDoctor0/CSGOMod](https://github.com/TheDoctor0/CSGOMod)** — 本仓库的仓库结构、
-  分发模式（贴图/模型直接入库、编译产物 gitignore）均参照该先例
+- **Counter-Strike** / **CS:GO** - Valve Corporation
+- **GoldSrc SDK** - Valve Corporation
+- **[TheDoctor0/CSGOMod](https://github.com/TheDoctor0/CSGOMod)** - this
+  repository's structure and distribution model follow that precedent
 
-### 本项目
+### This project
 
-- 换肤工具 `src/cs_skin_gui.py` — 本仓库贡献者，MIT License
+- `src/cs_skin_gui.py` and `src/i18n.py` - contributors of this repository,
+  MIT License
 
 ---
 
 ## License
 
-- **`src/` 源码** — [MIT](LICENSE)
-- **`cstrike/` 资源** — 版权归原移植者与 Valve 所有，**不适用 MIT**，
-  遵循原作者的授权条款
+- **Source code under `src/`** - [MIT](LICENSE)
+- **Assets under `cstrike/`** - copyright of the original porters and Valve,
+  **not covered by the MIT License**. Follow the original authors' terms.
 
-> 本项目与 Valve Corporation 无任何关联。
-> Counter-Strike 是 Valve Corporation 的注册商标。
+This project is not affiliated with Valve Corporation.
+Counter-Strike is a registered trademark of Valve Corporation.
 
 ---
 
 ## Disclaimer
 
-本项目仅用于技术学习与个人Mod制作交流。
-使用者需自行确保符合所在地法律与相关版权协议，
-并自行承担使用第三方资源的全部责任。
+For educational use and personal modding only. You are responsible for complying
+with applicable law and the relevant copyright agreements, and for any
+consequences arising from your use of third-party assets.

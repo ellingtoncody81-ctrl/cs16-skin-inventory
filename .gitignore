@@ -34,6 +34,10 @@ $RECYCLE.BIN/
 .DS_Store
 .AppleDouble
 
+# 本地改造备份
+*.bak
+*.bak_*
+
 # 编译中间产物（仿 CSGOMod skins/.gitignore）
 _compiled/
 */smd

@@ -7,6 +7,9 @@ from PIL import Image
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+import i18n
+from i18n import t, set_lang, get_lang, LANG_LABELS
+
 def get_exe_dir():
     if getattr(sys, 'frozen', False):
         return os.path.dirname(sys.executable)
@@ -249,7 +252,7 @@ def get_deploy_path(dname, mdl_path, tex_folder):
 class SkinToolGUI:
     def __init__(self, root):
         self.root = root
-        self.root.title("CS 1.6 换肤工具")
+        self.root.title(t("app_title"))
         self.root.geometry("1200x650")
         self.root.minsize(900, 550)
         self.root.resizable(True, True)
@@ -265,6 +268,7 @@ class SkinToolGUI:
         self.preview_images = {}
         self.running = False
         self._weapon_index_map = {}
+        self._lang_widgets = []   # [(widget, kind, key), ...] 用于语言切换
 
         self.setup_style()
         self.create_widgets()
@@ -293,27 +297,42 @@ class SkinToolGUI:
         container.pack(fill=tk.X)
         container.pack_propagate(False)
 
-        tk.Label(container, text="CS 1.6 武器换肤系统", font=("Microsoft YaHei", 18, "bold"),
-                 fg="white", bg='#2c3e50').pack(side=tk.LEFT, padx=20, pady=10)
-        self.status_label = tk.Label(container, text="就绪",
+        self.header_label = tk.Label(container, text=t("header_title"),
+                                      font=("Microsoft YaHei", 18, "bold"),
+                                      fg="white", bg='#2c3e50')
+        self.header_label.pack(side=tk.LEFT, padx=20, pady=10)
+        self._reg(self.header_label, "header_title")
+
+        self.status_label = tk.Label(container, text=t("ready"),
                                       font=("Microsoft YaHei", 10),
                                       fg="#bdc3c7", bg='#2c3e50')
         self.status_label.pack(side=tk.RIGHT, padx=20)
+
+        # 语言切换按钮（中 <-> EN）
+        self.lang_btn = tk.Label(container, text=LANG_LABELS[get_lang()],
+                                 font=("Microsoft YaHei", 10, "bold"),
+                                 fg="#2c3e50", bg="#ecf0f1", cursor="hand2",
+                                 padx=10, pady=3)
+        self.lang_btn.pack(side=tk.RIGHT, padx=(0, 10))
+        self.lang_btn.bind('<Button-1>', lambda e: self.toggle_lang())
 
         # 内容区域
         self.content_pane = ttk.PanedWindow(main_frame, orient=tk.HORIZONTAL)
         self.content_pane.pack(fill=tk.BOTH, expand=True)
 
         # ========= 左侧: 武器列表 =========
-        left_frame = ttk.LabelFrame(self.content_pane, text=" 武器列表 ", padding="8")
+        left_frame = ttk.LabelFrame(self.content_pane, text=t("weapon_list"), padding="8")
+        self._reg(left_frame, "weapon_list", "labeltext")
         left_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
 
         # 工具栏：一键随机 + 分类筛选
         tab_frame = ttk.Frame(left_frame)
         tab_frame.pack(fill=tk.X, pady=(0, 4))
 
-        ttk.Button(tab_frame, text="一键随机全部",
-                   command=self.random_all_skins).pack(side=tk.LEFT, padx=3)
+        self.randomize_all_btn = ttk.Button(tab_frame, text=t("randomize_all"),
+                                              command=self.random_all_skins)
+        self.randomize_all_btn.pack(side=tk.LEFT, padx=3)
+        self._reg(self.randomize_all_btn, "randomize_all")
 
         sep = ttk.Separator(tab_frame, orient=tk.VERTICAL)
         sep.pack(side=tk.LEFT, fill=tk.Y, padx=6, pady=2)
@@ -322,9 +341,11 @@ class SkinToolGUI:
         cat_frame = ttk.Frame(tab_frame)
         cat_frame.pack(side=tk.LEFT, padx=3)
         self.cat_var = tk.StringVar(value="gun")
-        for txt, val in [("枪械", "gun"), ("刀", "knife")]:
-            ttk.Radiobutton(cat_frame, text=txt, variable=self.cat_var,
-                            value=val, command=self.filter_weapons).pack(side=tk.LEFT, padx=2)
+        for key, val in [("cat_gun", "gun"), ("cat_knife", "knife")]:
+            rb = ttk.Radiobutton(cat_frame, text=t(key), variable=self.cat_var,
+                                 value=val, command=self.filter_weapons)
+            rb.pack(side=tk.LEFT, padx=2)
+            self._reg(rb, key)
 
         # 武器列表
         list_frame = ttk.Frame(left_frame)
@@ -351,7 +372,8 @@ class SkinToolGUI:
         self.progress.pack(fill=tk.X, expand=True)
 
         # 日志区域（移到左侧武器列表下方）
-        log_frame = ttk.LabelFrame(left_frame, text=" 操作日志 ", padding="6")
+        log_frame = ttk.LabelFrame(left_frame, text=t("log_panel"), padding="6")
+        self._reg(log_frame, "log_panel", "labeltext")
         log_frame.pack(fill=tk.BOTH, expand=True, pady=(6, 0))
 
         log_scrollbar = ttk.Scrollbar(log_frame)
@@ -363,7 +385,8 @@ class SkinToolGUI:
         log_scrollbar.config(command=self.log_text.yview)
 
         # ========= 右侧: 皮肤选择 =========
-        right_frame = ttk.LabelFrame(self.content_pane, text=" 皮肤选择 ", padding="8")
+        right_frame = ttk.LabelFrame(self.content_pane, text=t("skin_select"), padding="8")
+        self._reg(right_frame, "skin_select", "labeltext")
         right_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
 
         # 当前武器信息
@@ -380,22 +403,28 @@ class SkinToolGUI:
         skin_toolbar = ttk.Frame(right_frame)
         skin_toolbar.pack(fill=tk.X)
 
-        self.skin_count_label = tk.Label(skin_toolbar, text="可用皮肤: 0",
+        self.skin_count_label = tk.Label(skin_toolbar, text=t("avail_skins", n=0),
                                           font=("Microsoft YaHei", 10, "bold"),
                                           fg="#2c3e50")
         self.skin_count_label.pack(side=tk.LEFT)
+        self._reg(self.skin_count_label, "avail_skins", "avail_skins0")
 
         # 应用皮肤按钮（移到搜索框旁边，确保可见）
-        self.apply_btn = ttk.Button(skin_toolbar, text="应用皮肤",
+        self.apply_btn = ttk.Button(skin_toolbar, text=t("apply_skin"),
                                     command=self.apply_skin, state=tk.DISABLED, width=10)
         self.apply_btn.pack(side=tk.RIGHT, padx=(6, 0))
-        ttk.Button(skin_toolbar, text="随机本武器",
-                   command=self.random_one, width=10).pack(side=tk.RIGHT, padx=(3, 0))
+        self._reg(self.apply_btn, "apply_skin")
+        self.random_weapon_btn = ttk.Button(skin_toolbar, text=t("random_weapon"),
+                                            command=self.random_one, width=10)
+        self.random_weapon_btn.pack(side=tk.RIGHT, padx=(3, 0))
+        self._reg(self.random_weapon_btn, "random_weapon")
 
         search_frame = ttk.Frame(skin_toolbar)
         search_frame.pack(side=tk.RIGHT)
-        tk.Label(search_frame, text="搜索:",
-                 font=("Microsoft YaHei", 9)).pack(side=tk.LEFT, padx=(0, 4))
+        self.search_label = tk.Label(search_frame, text=t("search"),
+                                      font=("Microsoft YaHei", 9))
+        self.search_label.pack(side=tk.LEFT, padx=(0, 4))
+        self._reg(self.search_label, "search")
         self.search_var = tk.StringVar()
         self.search_var.trace_add('write', self.filter_skins)
         self.search_entry = ttk.Entry(search_frame, textvariable=self.search_var,
@@ -428,17 +457,22 @@ class SkinToolGUI:
 
         glove_header = ttk.Frame(glove_pane)
         glove_header.pack(fill=tk.X)
-        tk.Label(glove_header, text="手套皮肤", font=("Microsoft YaHei", 10, "bold"),
-                 fg="#2c3e50").pack(side=tk.LEFT)
+        self.glove_title = tk.Label(glove_header, text=t("glove_skins"),
+                                     font=("Microsoft YaHei", 10, "bold"), fg="#2c3e50")
+        self.glove_title.pack(side=tk.LEFT)
+        self._reg(self.glove_title, "glove_skins")
         self.glove_count_label = tk.Label(glove_header, text="0", font=("Microsoft YaHei", 9), fg="#7f8c8d")
         self.glove_count_label.pack(side=tk.LEFT, padx=(4, 0))
-        self.glove_clear_btn = tk.Label(glove_header, text=" ✕清除", font=("Microsoft YaHei", 9),
+        self.glove_clear_btn = tk.Label(glove_header, text="✕" + t("clear"),
+                                         font=("Microsoft YaHei", 9),
                                          fg="#e74c3c", cursor="hand2")
+        self._reg(self.glove_clear_btn, "clear", "clear_prefix")
         self.glove_clear_btn.pack(side=tk.RIGHT, padx=(0, 2))
         self.glove_clear_btn.bind('<Button-1>', lambda e: self.clear_glove())
 
-        self.glove_team_btn = ttk.Button(glove_header, text="一键手套全部",
+        self.glove_team_btn = ttk.Button(glove_header, text=t("randomize_gloves"),
                                           command=self.apply_glove_to_all, style='Blue.TButton')
+        self._reg(self.glove_team_btn, "randomize_gloves")
         self.glove_team_btn.pack(side=tk.RIGHT, padx=(0, 4))
 
         glove_scrollbar = ttk.Scrollbar(glove_pane)
@@ -458,8 +492,10 @@ class SkinToolGUI:
 
         sticker_header = ttk.Frame(sticker_pane)
         sticker_header.pack(fill=tk.X)
-        tk.Label(sticker_header, text="贴纸", font=("Microsoft YaHei", 10, "bold"),
-                 fg="#2c3e50").pack(side=tk.LEFT)
+        self.sticker_title = tk.Label(sticker_header, text=t("stickers"),
+                                       font=("Microsoft YaHei", 10, "bold"), fg="#2c3e50")
+        self.sticker_title.pack(side=tk.LEFT)
+        self._reg(self.sticker_title, "stickers")
         self.sticker_count_label = tk.Label(sticker_header, text="0", font=("Microsoft YaHei", 9), fg="#7f8c8d")
         self.sticker_count_label.pack(side=tk.LEFT, padx=(4, 0))
 
@@ -478,7 +514,10 @@ class SkinToolGUI:
         # 中间：通道选择
         decal_frame = ttk.Frame(sticker_ctrl_frame)
         decal_frame.pack(side=tk.LEFT, padx=(0, 4))
-        tk.Label(decal_frame, text="通道:", font=("Microsoft YaHei", 8), fg="#555").pack(side=tk.LEFT)
+        self.channel_label = tk.Label(decal_frame, text=t("channel"),
+                                       font=("Microsoft YaHei", 8), fg="#555")
+        self.channel_label.pack(side=tk.LEFT)
+        self._reg(self.channel_label, "channel")
         self.decal_var_a = tk.BooleanVar(value=True)
         self.decal_var_b = tk.BooleanVar(value=True)
         self.decal_var_c = tk.BooleanVar(value=True)
@@ -491,12 +530,20 @@ class SkinToolGUI:
         # 右侧：按钮
         sticker_btn_frame = ttk.Frame(sticker_ctrl_frame)
         sticker_btn_frame.pack(side=tk.RIGHT)
-        ttk.Button(sticker_btn_frame, text="应用到当前",
-                   command=self.apply_sticker_to_current, width=9).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sticker_btn_frame, text="随机全部",
-                   command=self.random_stickers_to_all, style='Blue.TButton', width=8).pack(side=tk.LEFT, padx=2)
-        ttk.Button(sticker_btn_frame, text="全清透明",
-                   command=self.clear_stickers_on_current, style='Red.TButton', width=8).pack(side=tk.LEFT, padx=2)
+        self.sticker_apply_btn = ttk.Button(sticker_btn_frame, text=t("apply_current"),
+                                             command=self.apply_sticker_to_current, width=9)
+        self.sticker_apply_btn.pack(side=tk.LEFT, padx=2)
+        self._reg(self.sticker_apply_btn, "apply_current")
+        self.sticker_rand_btn = ttk.Button(sticker_btn_frame, text=t("randomize_all_ch"),
+                                            command=self.random_stickers_to_all,
+                                            style='Blue.TButton', width=8)
+        self.sticker_rand_btn.pack(side=tk.LEFT, padx=2)
+        self._reg(self.sticker_rand_btn, "randomize_all_ch")
+        self.sticker_clear_btn = ttk.Button(sticker_btn_frame, text=t("clear_transparent"),
+                                             command=self.clear_stickers_on_current,
+                                             style='Red.TButton', width=8)
+        self.sticker_clear_btn.pack(side=tk.LEFT, padx=2)
+        self._reg(self.sticker_clear_btn, "clear_transparent")
 
         sticker_list_frame = ttk.Frame(sticker_pane)
         sticker_list_frame.pack(fill=tk.BOTH, expand=True)
@@ -517,6 +564,40 @@ class SkinToolGUI:
         # 延迟设置分割位置，确保组件完全初始化（兼容Tcl 9）
         self.root.after(100, self._set_sash_position)
     
+    def _reg(self, widget, key, kind=None):
+        """登记需要随语言切换更新的控件。"""
+        self._lang_widgets.append((widget, key, kind or "text"))
+        return widget
+
+    def apply_lang(self):
+        """把登记过的控件文本刷新为当前语言。"""
+        for widget, key, kind in self._lang_widgets:
+            try:
+                if kind == "labeltext":
+                    widget.config(text=t(key))
+                elif kind == "avail_skins0":
+                    n = len(self.current_skins)
+                    widget.config(text=t("avail_skins", n=n))
+                elif kind == "clear_prefix":
+                    widget.config(text="\u2715" + t("clear"))
+                else:
+                    widget.config(text=t(key))
+            except tk.TclError:
+                pass
+        # 语言按钮本身
+        try:
+            self.lang_btn.config(text=LANG_LABELS[get_lang()])
+        except tk.TclError:
+            pass
+        self.root.title(t("app_title"))
+
+    def toggle_lang(self):
+        """中 <-> EN 切换，立即生效。"""
+        new = "en" if get_lang() == "zh" else "zh"
+        set_lang(new)
+        self.apply_lang()
+        self.log(t("lang_switched", lang=LANG_LABELS[new]))
+
     def _set_sash_position(self):
         try:
             self.content_pane.sash_place(0, 280, 0)
@@ -544,7 +625,7 @@ class SkinToolGUI:
         self.root.after(0, _set)
 
     def load_weapons(self):
-        self.log("加载武器模型...")
+        self.log(t("loading_models"))
         self.weapons = []
         skip_patterns = ['test', 'copy']
 
@@ -562,10 +643,10 @@ class SkinToolGUI:
                     mdl_path = os.path.join(MODELS_DIR, f)
                     if f in WEAPON_MAP:
                         name, tex_folder = WEAPON_MAP[f]
-                        tex_label = tex_folder.replace("|", " + ") if tex_folder else "无贴图"
+                        tex_label = tex_folder.replace("|", " + ") if tex_folder else t("no_texture")
                         self.weapons.append((f, name, mdl_path, tex_folder, tex_label))
                     else:
-                        self.weapons.append((f, f.replace('v_','').replace('.mdl','').upper(), mdl_path, None, "未知"))
+                        self.weapons.append((f, f.replace('v_','').replace('.mdl','').upper(), mdl_path, None, t("unknown")))
 
         # CSGO刀（20把）：来自 ct_knife/，需部署到 models/v_knife.mdl
         ct_knife_dir = os.path.join(MODELS_DIR, "ct_knife")
@@ -576,7 +657,7 @@ class SkinToolGUI:
                     tex_folder = f"__knife__{tex_sub}"
                     self.weapons.append(("v_knife.mdl", disp_name, mdl_path, tex_folder, disp_name))
 
-        self.log(f"找到 {len(self.weapons)} 个武器模型")
+        self.log(t("found_models", n=len(self.weapons)))
         self.filter_weapons()
 
     def filter_weapons(self):
@@ -627,19 +708,19 @@ class SkinToolGUI:
 
             self.info_text.config(state=tk.NORMAL)
             self.info_text.delete('1.0', tk.END)
-            self.info_text.insert(tk.END, f"武器: {dname}  贴图: {tex_label}  大小: {size}KB\n")
+            self.info_text.insert(tk.END, t("info_line", dname=dname, tex=tex_label, size=size) + "\n")
             for ti in tex_info:
                 self.info_text.insert(tk.END, ti + "\n")
             self.info_text.config(state=tk.DISABLED)
         except Exception as e:
             self.info_text.config(state=tk.NORMAL)
             self.info_text.delete('1.0', tk.END)
-            self.info_text.insert(tk.END, f"武器: {dname}\n读取错误: {e}")
+            self.info_text.insert(tk.END, t("read_error", dname=dname, e=e))
             self.info_text.config(state=tk.DISABLED)
 
         # 加载皮肤列表
         self.current_skins = scan_skins(tex_folder)
-        self.skin_count_label.config(text=f"可用皮肤: {len(self.current_skins)}")
+        self.skin_count_label.config(text=t("avail_skins", n=len(self.current_skins)))
         self.filter_skins()
 
         # 加载手套皮肤
@@ -697,11 +778,11 @@ class SkinToolGUI:
 
     def apply_glove_to_all(self):
         if not self.selected_glove:
-            messagebox.showwarning("提示", "请先在手套列表中选一个手套皮肤")
+            messagebox.showwarning(t("hint"), t("glove_missing"))
             return
         if self.running:
             return
-        reply = messagebox.askyesno("确认", "将手套应用到所有武器?\n原文件将被直接覆盖!")
+        reply = messagebox.askyesno(t("confirm"), t("glove_confirm"))
         if not reply:
             return
 
@@ -715,7 +796,7 @@ class SkinToolGUI:
             # 默认原始刀也应用手套（无论是否已被覆盖）
             knife_path = os.path.join(MODELS_DIR, "v_knife.mdl")
             if os.path.exists(knife_path):
-                targets.append(("原始刀", knife_path))
+                targets.append((t("original_knife"), knife_path))
 
             total = len(targets)
             success = 0
@@ -742,21 +823,21 @@ class SkinToolGUI:
                     if has_glove:
                         with open(mdl_path, 'wb') as f:
                             f.write(bytes(new_data))
-                        self.log(f"  ✅ [{idx+1}/{total}] {dname} -> 手套:{glove_name}")
+                        self.log(f"  ✅ [{idx+1}/{total}] {dname} -> " + t("glove_colon", name=glove_name))
                         success += 1
                     else:
-                        self.log(f"  ⏭ [{idx+1}/{total}] {dname} -> 无手套纹理")
+                        self.log(f"  ⏭ [{idx+1}/{total}] {dname} -> " + t("glove_no_tex"))
                 except Exception as e:
                     self.log(f"  ❌ [{idx+1}/{total}] {dname} -> {e}")
                 self.progress_var.set(idx + 1)
 
             self.running = False
             self.log(f"\n{'='*50}")
-            self.log(f"完成! 成功: {success}, 共: {total}")
+            self.log(t("glove_done_log", ok=success, total=total))
             self.log(f"{'='*50}")
-            self.set_status("手套应用完成!")
-            self.root.after(0, lambda: messagebox.showinfo("完成",
-                f"一键手套全部完成!\n成功: {success}\n共: {total}"))
+            self.set_status(t("glove_apply_ok"))
+            self.root.after(0, lambda: messagebox.showinfo(t("done"),
+                t("glove_done_all", ok=success, total=total)))
 
         threading.Thread(target=do_apply, daemon=True).start()
 
@@ -784,11 +865,8 @@ class SkinToolGUI:
         # CSGO刀：自动部署到游戏位置（silent模式不弹窗）
         if tex_folder and tex_folder.startswith("__knife__"):
             if not silent:
-                reply = messagebox.askyesno("刀型部署提示",
-                    f"「{dname}」是一把CSGO刀型，应用时将自动：\n"
-                    f"① 把该刀MDL复制到游戏读取位置\n"
-                    f"② 再注入皮肤贴图\n\n"
-                    f"继续吗？")
+                reply = messagebox.askyesno(t("knife_deploy_title"),
+                    t("knife_deploy_msg", name=dname))
                 if not reply:
                     return
 
@@ -860,12 +938,12 @@ class SkinToolGUI:
                 if skin_name:
                     parts.append(skin_name)
                 if self.selected_glove:
-                    parts.append(f"手套:{glove_name}")
+                    parts.append(t("glove_colon", name=glove_name))
                 self.log(f"✅ {' -> '.join(parts)} ({out_size}KB)")
-                self.set_status(f"已应用: {skin_name or '只换手套'}")
+                self.set_status(t("applied", name=skin_name or t("glove_only")))
             except Exception as e:
-                self.log(f"❌ {dname} 错误: {e}")
-                self.set_status("失败!")
+                self.log(f"❌ {dname} " + t("error_colon", e=e))
+                self.set_status(t("apply_failed"))
 
         threading.Thread(target=do_apply, daemon=True).start()
 
@@ -892,7 +970,7 @@ class SkinToolGUI:
     def random_all_skins(self):
         if self.running:
             return
-        reply = messagebox.askyesno("确认", "一键随机所有武器的皮肤?\n原文件将被直接覆盖!")
+        reply = messagebox.askyesno(t("confirm"), t("random_all_confirm"))
         if not reply:
             return
 
@@ -910,7 +988,7 @@ class SkinToolGUI:
             # 添加默认原始刀（无皮肤贴图但需要手套）
             default_knife = os.path.join(MODELS_DIR, "v_knife.mdl")
             if os.path.exists(default_knife) and default_knife not in seen:
-                weapons.append(("v_knife.mdl", "原始刀", default_knife, None, "无贴图"))
+                weapons.append(("v_knife.mdl", t("original_knife"), default_knife, None, t("no_texture")))
 
             total = len(weapons)
             success = 0
@@ -927,7 +1005,7 @@ class SkinToolGUI:
 
                 # 如果没有皮肤也没有手套，跳过
                 if tex_folder is None and not self.glove_skins:
-                    self.log(f"  ⏭ [{idx+1}] {dname} -> 跳过(无贴图)")
+                    self.log(f"  ⏭ [{idx+1}] {dname} -> " + t("skip_no_tex"))
                     skipped += 1
                     self.progress_var.set(idx + 1)
                     continue
@@ -1012,7 +1090,7 @@ class SkinToolGUI:
                     if skin_name:
                         parts.append(skin_name)
                     if gname:
-                        parts.append(f"手套:{gname}")
+                        parts.append(t("glove_colon", name=gname))
                     self.log(f"  ✅ [{idx+1}/{total}] {' -> '.join(parts)}")
                     success += 1
                 except Exception as e:
@@ -1022,11 +1100,11 @@ class SkinToolGUI:
 
             self.running = False
             self.log(f"\n{'='*50}")
-            self.log(f"完成! 成功: {success}, 跳过: {skipped}, 共: {total}")
+            self.log(t("random_done", ok=success, skip=skipped, total=total))
             self.log(f"{'='*50}")
-            self.set_status("全部完成!")
-            self.root.after(0, lambda: messagebox.showinfo("完成",
-                f"一键随机皮肤完成!\n成功: {success}\n跳过: {skipped}\n共: {total}"))
+            self.set_status(t("random_all_done"))
+            self.root.after(0, lambda: messagebox.showinfo(t("done"),
+                t("random_done_all", ok=success, skip=skipped, total=total)))
 
         threading.Thread(target=do_random_all, daemon=True).start()
 
@@ -1064,7 +1142,7 @@ class SkinToolGUI:
             return
         sel = self.sticker_listbox.curselection()
         if not sel or sel[0] >= len(self.filtered_stickers):
-            messagebox.showwarning("提示", "请先选一个贴纸")
+            messagebox.showwarning(t("hint"), t("sticker_missing"))
             return
         channels = []
         if self.decal_var_a.get(): channels.append('a')
@@ -1072,7 +1150,7 @@ class SkinToolGUI:
         if self.decal_var_c.get(): channels.append('c')
         if self.decal_var_d.get(): channels.append('d')
         if not channels:
-            messagebox.showwarning("提示", "请至少选一个贴纸通道(A/B/C/D)")
+            messagebox.showwarning(t("hint"), t("sticker_no_ch"))
             return
         sticker_display, sticker_path = self.filtered_stickers[sel[0]]
         fname, dname, mdl_path, tex_folder, tex_label = self.current_weapon
@@ -1080,7 +1158,7 @@ class SkinToolGUI:
         is_knife = tex_folder and tex_folder.startswith('__knife__')
         is_grenade = fname in ("v_c4.mdl", "v_flashbang.mdl", "v_hegrenade.mdl", "v_smokegrenade.mdl")
         if is_knife or is_grenade:
-            messagebox.showwarning("提示", f"当前武器({dname})没有贴花通道，不支持贴纸替换")
+            messagebox.showwarning(t("hint"), t("sticker_unsupported", name=dname))
             return
         ch_str = ''.join(channels).upper()
 
@@ -1100,18 +1178,18 @@ class SkinToolGUI:
                 new_data = self._apply_stickers_to_mdl(orig_data, sticker_path, channels)
                 with open(actual_path, 'wb') as f:
                     f.write(new_data)
-                self.log(f"✅ {dname} -> 贴纸 [通道{ch_str}]")
-                self.set_status(f"贴纸已应用: 通道{ch_str}")
+                self.log(f"✅ {dname} -> " + t("sticker_ch", ch=ch_str))
+                self.set_status(t("sticker_ok", ch=ch_str))
             except Exception as e:
-                self.log(f"❌ {dname} 贴纸错误: {e}")
-                self.set_status("贴纸失败!")
+                self.log(f"❌ {dname} " + t("sticker_error", e=e))
+                self.set_status(t("sticker_fail"))
 
         threading.Thread(target=do_apply, daemon=True).start()
 
     def clear_stickers_on_current(self):
         """一键把当前武器所有 decal_a/b/c/d 通道全部替换为透明 BMP"""
         if self.current_weapon is None:
-            messagebox.showwarning("提示", "请先在左侧选一把武器")
+            messagebox.showwarning(t("hint"), t("select_weapon"))
             return
 
         fname, dname, mdl_path, tex_folder, tex_label = self.current_weapon
@@ -1120,15 +1198,13 @@ class SkinToolGUI:
         is_knife = tex_folder and tex_folder.startswith('__knife__')
         is_grenade = fname in ("v_c4.mdl", "v_flashbang.mdl", "v_hegrenade.mdl", "v_smokegrenade.mdl")
         if is_knife or is_grenade:
-            messagebox.showwarning("提示", f"当前武器({dname})没有贴花通道")
+            messagebox.showwarning(t("hint"), t("sticker_no_decal", name=dname))
             return
 
         # 透明 BMP 路径 — 相对路径,放在贴纸资源包根目录
         transparent_bmp = os.path.join(STICKERS_DIR, "transparent_sticker.bmp")
         if not os.path.exists(transparent_bmp):
-            messagebox.showerror("错误",
-                f"找不到透明贴纸 BMP:\n{transparent_bmp}\n\n"
-                f"请把 transparent_sticker.bmp 放到贴纸目录下")
+            messagebox.showerror(t("error"), t("sticker_bmp_missing", path=transparent_bmp))
             return
 
         def do_clear():
@@ -1154,11 +1230,11 @@ class SkinToolGUI:
                 with open(actual_path, 'wb') as f:
                     f.write(new_data)
 
-                self.log(f"🧹 {dname} -> 所有贴纸通道已清空 (透明)")
-                self.set_status(f"{dname} 贴纸已全部清空")
+                self.log(f"🧹 {dname} -> " + t("sticker_cleared_log"))
+                self.set_status(t("sticker_cleared", name=dname))
             except Exception as e:
-                self.log(f"❌ {dname} 清空贴纸错误: {e}")
-                self.set_status("清空贴纸失败!")
+                self.log(f"❌ {dname} " + t("clear_sticker_error", e=e))
+                self.set_status(t("clear_sticker_fail"))
 
         threading.Thread(target=do_clear, daemon=True).start()
 
@@ -1166,7 +1242,7 @@ class SkinToolGUI:
         if not self.stickers:
             self.stickers = scan_stickers()
             if not self.stickers:
-                messagebox.showwarning("提示", "没有找到贴纸资源")
+                messagebox.showwarning(t("hint"), t("sticker_not_found"))
                 return
         channels = ['a', 'b', 'c', 'd']
         targets = []
@@ -1179,10 +1255,10 @@ class SkinToolGUI:
             deploy_path = get_deploy_path(dname, mdl_path, tex_folder)
             targets.append((dname, mdl_path, deploy_path))
         if not targets:
-            messagebox.showwarning("提示", "没有可贴纸的武器")
+            messagebox.showwarning(t("hint"), t("sticker_no_weapon"))
             return
-        reply = messagebox.askyesno("确认",
-            f"将为 {len(targets)} 个武器随机分配贴纸(ABCD四通道)?\n原文件将被直接覆盖!")
+        reply = messagebox.askyesno(t("confirm"),
+            t("sticker_confirm", n=len(targets)))
         if not reply:
             return
         self.running = True
@@ -1212,18 +1288,18 @@ class SkinToolGUI:
                         new_data = bytearray(new_data)
                     with open(actual_path, 'wb') as f:
                         f.write(bytes(new_data))
-                    self.log(f"  ✅ [{idx+1}/{total}] {dname} -> 随机贴纸x4")
+                    self.log(f"  ✅ [{idx+1}/{total}] {dname} -> " + t("sticker_random_log"))
                     success += 1
                 except Exception as e:
                     self.log(f"  ❌ [{idx+1}/{total}] {dname} -> {e}")
                 self.progress_var.set(idx + 1)
             self.running = False
             self.log(f"\n{'='*50}")
-            self.log(f"贴纸随机完成! 成功: {success}, 共: {total}")
+            self.log(t("sticker_random_done", ok=success, total=total))
             self.log(f"{'='*50}")
-            self.set_status("贴纸随机完成!")
-            self.root.after(0, lambda: messagebox.showinfo("完成",
-                f"贴纸随机完成!\n成功: {success}\n共: {total}"))
+            self.set_status(t("sticker_random_all"))
+            self.root.after(0, lambda: messagebox.showinfo(t("done"),
+                t("sticker_random_all_done", ok=success, total=total)))
 
         threading.Thread(target=do_random, daemon=True).start()
 
