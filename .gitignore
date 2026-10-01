@@ -1,0 +1,42 @@
+# Byte-compiled / cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# PyInstaller
+build/
+dist/
+*.manifest
+*.spec
+
+# 打包产物
+*.exe
+!cs_skin_gui.exe
+
+# 编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 系统
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+*.lnk
+*.cab
+*.msi
+*.msm
+*.msp
+.DS_Store
+.AppleDouble
+
+# 编译中间产物（仿 CSGOMod skins/.gitignore）
+_compiled/
+*/smd
+*/studiomdl.exe
+*/*[0-9].mdl
+*/*.bak

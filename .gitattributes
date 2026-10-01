@@ -1,0 +1,26 @@
+# Auto detect text files and perform LF normalization
+* text=auto
+
+# 源码与文档强制按文本处理
+*.py    text diff=python
+*.md    text
+*.txt   text
+*.cfg   text
+*.ini   text
+*.qc    text
+.gitignore    text
+.gitattributes text
+
+# 二进制资源：禁止行尾转换，禁止 diff，禁止合并
+*.bmp   binary
+*.mdl   binary
+*.wav   binary
+*.exe   binary
+*.png   binary
+*.jpg   binary
+*.tga   binary
+*.spr   binary
+*.bsp   binary
+
+# Windows 换行（.bat/.smd 等）
+*.bat   text eol=crlf

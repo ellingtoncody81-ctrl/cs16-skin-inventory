@@ -1,0 +1,7 @@
+# CS:GO 移植资源
+# 版权与授权见 LICENSE / README#Credits
+# 提醒：二进制资源差异巨大，默认关闭 GitHub PR 的二进制 diff
+*.bmp binary
+*.mdl binary
+*.wav binary
+*.exe binary
